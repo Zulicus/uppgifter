@@ -2,16 +2,15 @@ package com.example.demo;
 
 import java.text.DecimalFormat;
 import java.util.ArrayList;
+import java.util.Collections;
 
 public class JSONBean {
 	private String JSON = " ";
 	private ArrayList<String> specificJSON = new ArrayList<String>();
 	private ArrayList<String> errorFinder = new ArrayList<String>();
-	private ArrayList<String> error = new ArrayList<String>();
 
 	public JSONBean() {
 		createJSON();
-		error.add("Invalid Input");
 	}
 
 	public String getJSON() {
@@ -19,15 +18,15 @@ public class JSONBean {
 	}
 
 	private void createJSON() {
-		ArrayList<CSVBean> CSVlist = makeDates();
-		String pattern = "{\"Order Date\":{";
+		ArrayList<CSVBean> CSVlist = getCSV();
+		String pattern = "{\"Order Dates\":{";
 		JSON += pattern;
 		for (int i = 1; i < CSVlist.size(); i++) {
 			if (i + 1 == CSVlist.size()) {
-				pattern = "\"%s\":{\"Region\":\"%s\",\"Last name\":\"%s\",\"First Name\":\"%s\",\"Item\":\"%s\",\"Units\":\"%s\",\"Unit Cost\":\"%s\",\"Total\":\"%s\"}}}";
+				pattern = "\"Date\":\"%s\":{\"Region\":\"%s\",\"Name\":{\"Last name\":\"%s\",\"First Name\":\"%s\"},\"Item\":\"%s\",\"Units\":\"%s\",\"Unit Cost\":\"%s\",\"Total\":\"%s\"}}}";
 				JSON += format(CSVlist, i, pattern);
 			} else {
-				pattern = "\"%s\":{\"Region\":\"%s\",\"Last name\":\"%s\",\"First Name\":\"%s\",\"Item\":\"%s\",\"Units\":\"%s\",\"Unit Cost\":\"%s\",\"Total\":\"%s\"},";
+				pattern = "\"Date\":\"%s\":{\"Region\":\"%s\",\"Name\":{\"Last name\":\"%s\",\"First Name\":\"%s\"},\"Item\":\"%s\",\"Units\":\"%s\",\"Unit Cost\":\"%s\",\"Total\":\"%s\"},";
 				JSON += format(CSVlist, i, pattern);
 			}
 		}
@@ -39,27 +38,27 @@ public class JSONBean {
 				CSVlist.get(i).getUnits(), CSVlist.get(i).getUnitCost(), CSVlist.get(i).getTotal());
 	}
 
-	public ArrayList<String> getSpecificJSON(String columnChoice) {
+	public String getSpecificJSON(String columnChoice) {
 
 		switch (columnChoice.toLowerCase()) {
 		case "orderdate":
-			return redundencyCheck("OrderDate", 1);
+			return priettyJSON(redundencyCheck("OrderDate", 1), "Order Date", 1);
 		case "region":
-			return redundencyCheck("Region", 2);
+			return priettyJSON(redundencyCheck("Region", 2), "Region", 1);
 		case "rep1":
-			return redundencyCheck("Rep1", 3);
+			return priettyJSON(redundencyCheck("Rep1", 3), "Last Name", 1);
 		case "rep2":
-			return redundencyCheck("Rep2", 4);
+			return priettyJSON(redundencyCheck("Rep2", 4), "First Name", 1);
 		case "item":
-			return redundencyCheck("Item", 5);
+			return priettyJSON(redundencyCheck("Item", 5), "Item", 1);
 		case "units":
-			return redundencyCheck("Units", 6);
+			return priettyJSON(redundencyCheck("Units", 6), "Units", 1);
 		case "unitcost":
-			return redundencyCheck("UnitCost", 7);
+			return priettyJSON(redundencyCheck("UnitCost", 7), "Unit Cost", 1);
 		case "total":
-			return redundencyCheck("Total", 8);
+			return priettyJSON(redundencyCheck("Total", 8), "Total", 1);
 		default:
-			return error;
+			return "Invalid Input";
 		}
 
 	}
@@ -83,7 +82,7 @@ public class JSONBean {
 	public ArrayList<String> errorFinder() {
 		if (errorFinder.isEmpty()) {
 			DecimalFormat format = new DecimalFormat("0.00");
-			ArrayList<CSVBean> CSVlist = makeDates();
+			ArrayList<CSVBean> CSVlist = getCSV();
 			for (int i = 1; i < CSVlist.size(); i++) {
 				double check = Double.parseDouble(format.format(Double.parseDouble(CSVlist.get(i).getUnits())
 						* Double.parseDouble(CSVlist.get(i).getUnitCost())).replace(",", "."));
@@ -97,12 +96,42 @@ public class JSONBean {
 		return errorFinder;
 	}
 
-	public ArrayList<CSVBean> makeDates() {
+	public ArrayList<CSVBean> getCSV() {
 		ArrayList<CSVBean> CSVlist = new ArrayList<CSVBean>();
 		for (ArrayList<String> row : readCSV.getWholeSheet()) {
 			CSVBean bean = new CSVBean(row);
 			CSVlist.add(bean);
 		}
 		return CSVlist;
+	}
+
+	public String getSortedJSON(String column) {
+		getSpecificJSON(column);
+		if (column.toLowerCase().equals("units") || column.toLowerCase().equals("unitcost")
+				|| column.toLowerCase().equals("total")) {
+			ArrayList<Double> numberList = new ArrayList<Double>();
+			for (int i = 1; i < specificJSON.size(); i++) {
+				numberList.add(Double.parseDouble(specificJSON.get(i)));
+			}
+			Collections.sort(numberList);
+			specificJSON.clear();
+			for (Double item : numberList) {
+				specificJSON.add(item.toString());
+			}
+		} else {
+			Collections.sort(specificJSON);
+		}
+		return priettyJSON(specificJSON, column, 0);
+	}
+
+	public String priettyJSON(ArrayList<String> inJSON, String column, int startpoint) {
+		String pattern = "{\"%s\":{";
+		pattern = String.format(pattern, column);
+		for (int i = startpoint; i < inJSON.size(); i++) {
+			pattern += "\"" + inJSON.get(i) + "\",";
+		}
+		pattern = pattern.replaceAll(",$", "}}");
+		return pattern;
+
 	}
 }
